@@ -52,7 +52,6 @@ export function useTodos() {
 
   return {
     todos: filteredTodos,
-    totalCount: todos.length,
     pendingCount,
     hasCompleted: pendingCount < todos.length,
     filter,
