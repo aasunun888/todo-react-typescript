@@ -19,8 +19,10 @@ function TodoItemEditor({ id, initialText, onSave, onCancel }: TodoItemEditorPro
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') close(() => onSave(draft))
-    if (event.key === 'Escape') close(onCancel)
+    if (event.key !== 'Enter' && event.key !== 'Escape') return
+    // Sin esto, el Enter llega al botón de editar (que recibe el foco al cerrar) y lo reabre
+    event.preventDefault()
+    close(event.key === 'Enter' ? () => onSave(draft) : onCancel)
   }
 
   const inputId = `edit-${id}`
