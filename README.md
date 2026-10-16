@@ -1,78 +1,57 @@
-# React + TypeScript + Vite
+# Tareas · React + TypeScript
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Lista de tareas (To-Do) hecha con React 19, TypeScript en modo estricto y Vite, sin librerías externas de estado ni de UI.
 
-Currently, two official plugins are available:
+**Funcionalidades:** añadir, completar, editar (doble clic o botón; Enter guarda, Escape cancela), eliminar, filtrar (Todas / Pendientes / Completadas), contador de pendientes, borrar completadas y persistencia en `localStorage`. Es accesible con teclado y lector de pantalla, se adapta a móvil y tiene modo oscuro automático.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Instalación y uso
 
-## React Compiler
+Requiere Node.js 20.19 o superior.
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-You can also try [the experimental native React Compiler support in plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md#rust-react-compiler) by using `compiler: true` in the plugin options instead of using the Babel plugin.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev       # servidor de desarrollo
+npm run build     # comprueba tipos y genera dist/
+npm run preview   # sirve la build de producción
+npm run lint      # ESLint
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Estructura
 
 ```
+src/
+├── components/   # Solo presentación: reciben datos y emiten eventos
+│   ├── TodoForm.tsx · TodoList.tsx · TodoItem.tsx · TodoItemEditor.tsx
+│   └── TodoFilters.tsx · TodoFooter.tsx
+├── hooks/
+│   ├── useTodos.ts         # Toda la lógica de tareas
+│   └── useLocalStorage.ts  # Persistencia genérica <T>
+├── reducers/
+│   └── todoReducer.ts      # Función pura (estado, acción) => estado
+├── types/
+│   └── todo.ts             # Todo, Filter y acciones del reducer
+└── App.tsx                 # Solo compone componentes
+```
+
+## Decisiones técnicas
+
+### Hooks personalizados
+- **`useTodos`** concentra toda la lógica: estado, filtrado, contador y acciones. Los componentes no saben cómo se guardan ni se modifican las tareas, y `App.tsx` solo los conecta.
+- **`useLocalStorage<T>`** persiste cualquier valor serializable y es reutilizable. No guarda estado propio: así no se duplica el estado de `useReducer` ni hace falta sincronizar dos fuentes de verdad. La lectura inicial (`readLocalStorage`) y la escritura van dentro de un `try/catch`. Si el JSON está corrupto, no hay acceso al storage o se excede la cuota, la app sigue funcionando en memoria.
+
+### `useReducer` con acciones tipadas
+- Las acciones son una **unión discriminada** (`add | toggle | edit | delete | clearCompleted`). TypeScript comprueba que cada acción lleve sus datos y que el `switch` las cubra todas.
+- El reducer está en su propio archivo y es **puro**. El `id` (`crypto.randomUUID()`) y la fecha se generan en `useTodos` antes de despachar la acción. Así el reducer se puede probar sin React y se comporta igual aunque `StrictMode` lo ejecute dos veces.
+- El estado inicial se lee de forma diferida (`useReducer(reducer, [], init)`), así que `localStorage` solo se lee una vez.
+
+### Memoización
+Se hace de forma explícita y sin React Compiler, para que cada optimización sea visible y se pueda justificar:
+- **`React.memo` en `TodoItem`:** al marcar o editar una tarea, solo se vuelve a renderizar esa tarea y no toda la lista. Funciona porque el reducer conserva la referencia de las tareas que no cambian.
+- **`useCallback`** en todos los handlers que llegan a `TodoItem`. Sin referencias estables, `memo` no serviría de nada. Como `dispatch` es estable, los handlers no tienen dependencias.
+- **`useMemo`** para la lista filtrada y el contador de pendientes. Solo se recalculan cuando cambian las tareas o el filtro.
+- Las `key` de la lista son el `id` de cada tarea, nunca el índice. Así React conserva el nodo y el estado de cada fila al filtrar o borrar.
+
+### Accesibilidad
+- HTML semántico: `<form>`, `<ul>/<li>`, `<button>` y un `<label>` para cada input. Las etiquetas que no se ven en pantalla usan `.sr-only`.
+- Los botones de icono tienen `aria-label`, los filtros usan `aria-pressed`, el contador es una región `aria-live` y el error del formulario usa `role="alert"`.
+- Al guardar o cancelar una edición con el teclado, el foco vuelve al botón de editar.
