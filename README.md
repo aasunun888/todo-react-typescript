@@ -2,6 +2,8 @@
 
 Lista de tareas (To-Do) hecha con React 19, TypeScript en modo estricto y Vite, sin librerías externas de estado ni de UI.
 
+**Demo en vivo:** https://aasunun888.github.io/todo-react-typescript/
+
 **Funcionalidades:** añadir, completar, editar (doble clic o botón; Enter guarda, Escape cancela), eliminar, filtrar (Todas / Pendientes / Completadas), contador de pendientes, borrar completadas y persistencia en `localStorage`. Es accesible con teclado y lector de pantalla, se adapta a móvil y tiene modo oscuro automático.
 
 ## Instalación y uso
@@ -15,6 +17,8 @@ npm run build     # comprueba tipos y genera dist/
 npm run preview   # sirve la build de producción
 npm run lint      # ESLint
 ```
+
+Cada push a `main` ejecuta lint y build, y despliega en GitHub Pages ([deploy.yml](.github/workflows/deploy.yml)).
 
 ## Estructura
 
